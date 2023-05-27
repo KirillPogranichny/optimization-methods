@@ -1,122 +1,90 @@
-import random
-
 import numpy as np
 
 
-def initial_A():
-    A = np.tril(np.random.randint(-10, 10, (dim, dim)))
-    A += A.T
+class SecondLab:
 
-    if np.linalg.det(A) != 0 and np.shape(A)[0] == np.shape(A)[1]:
-        print("Матрица A симметрична и невырождена:")
-        return A
-    else:
-        print("Матрица A вырождена, создадим новую.")
-        initial_A()
+    A = 0
+    b = 0
+    r = 0
+    x_0 = 0
+    a = 0
+    y = 0
+    sign = 0
 
+    def __init__(self, r, a, y, sign):
+        self.A = np.loadtxt("a.txt", usecols=(range(4)))
+        self.b = np.loadtxt("b.txt", usecols=(range(1)), ndmin=2)
+        self.x_0 = np.loadtxt("x_0.txt", usecols=(range(1)), ndmin=2)
+        self.r = r
+        self.a = a
+        self.y = y
+        self.sign = sign
 
-def initial_b():
-    b = (10 - (-10)) * np.random.random_sample(dim) - 10
-    ctr = 0
+    def f(self, x: np.ndarray) -> float:
+        res = .5 * x.transpose() @ self.A @ x + self.b.transpose() @ x
+        return res[0][0]
 
-    for i in range(dim):
-        if b[i] != 0:
-            continue
-        else:
-            ctr += 1
-            if ctr == dim:
-                print("Вектор b является нулевым, создадим новый.")
-                initial_b()
+    def generate_matrix(self):
+        matrix = np.random.uniform(0.4, 0.7, (4, 4))
+        np.savetxt("A.txt", matrix @ matrix, fmt='%.7f')
 
-    print("\nВектор b ненулевой:")
+    def generate_vector(self, name: str):
+        matrix = np.random.uniform(1, 2, (4, 1))
+        np.savetxt(f"{name}.txt", matrix, fmt='%.7f')
 
-    return b
+    def lagrange_slae(self, x: np.ndarray) -> np.ndarray:
+        return np.append((self.A + 2*np.eye(4)*self.y)@x + (self.b + 2*self.y*self.x_0), [[np.linalg.norm(x - self.x_0)**2 - self.r**2]], axis=0)
 
+    def jacobian(self, x: np.ndarray) -> np.ndarray:
+        J_1_1 = self.A + 2*np.eye(4)*self.y
+        J_1_2 = 2*(x - self.x_0)
+        J_2_1 = J_1_2.transpose()
+        J_2_2 = [[0]]
+        J_1 = np.append(J_1_1, J_1_2, axis=1)
+        J_2 = np.append(J_2_1, J_2_2, axis=1)
+        return np.append(J_1, J_2, axis=0)
 
-def initial_x0():
-    x0 = (10 - (-10)) * np.random.random_sample(dim) - 10
-    ctr = 0
+    def newton(self, x_k: np.ndarray, epsilon=1e-6, max_iter=30, ):
+        x_prev = x_k
+        x_cur = x_prev - np.linalg.inv(self.jacobian(x_prev[0:-1])) @ self.lagrange_slae(x_prev[0:-1])
+        it = 0
+        while np.linalg.norm(x_cur[0:-1] - x_prev[0:-1]) > epsilon and it < max_iter:
+            it += 1
+            x_prev = x_cur
+            x_cur = x_prev - np.linalg.inv(self.jacobian(x_prev[0:-1])) @ self.lagrange_slae(x_prev[0:-1])
+        return x_cur
 
-    for i in range(dim):
-        if x0[i] != 0:
-            continue
-        else:
-            ctr += 1
-            if ctr == dim:
-                print("Вектор x0 является нулевым, создадим новый.")
-                initial_b()
+    def start_lab(self):
+        x_ = np.append(self.x_0, [[self.y]], axis=0)
 
-    print("\nВектор x0 ненулевой:")
+        print('')
+        x_star = -np.linalg.inv(self.A) @ self.b
+        f_in_x_star = self.f(x_star)
+        print(f"x* =\n{x_star}")
+        print(f"Функция в точке x* = {f_in_x_star}")
+        print(f"x*-x_0 =\n{x_star - self.x_0}")
+        print(f"||x*-x_0|| = {np.linalg.norm(x_star - self.x_0)}")
+        print('')
 
-    return x0
-
-
-def function(x):
-    res = .5 * np.matmul(np.matmul(x.T, A), x) + np.matmul(b.T, x)
-    return res[0][0]
-
-
-def lagrange_slae(x):
-    return np.append(np.matmul((A + 2 * np.identity(dim) * y), x) + (b + 2 * y * x0), [[np.linalg.norm(np.power((x - x0), 2)) - np.power(r, 2)]], axis=0)
-
-
-def jacobian(x):
-    J = np.empty([2, 2], dtype=float)
-    J[0][0] = A + 2 * np.identity(dim) * y
-    J[0][1] = 2 * (x - x0)
-    J[1][0] = J[0][1].T
-    J[1][1] = 0
-    return J
-
-
-def newton(x_k):
-    max_iter = 30
-    eps = 1e-6
-    x_prev = x_k
-    x_cur = x_prev - np.matmul(np.linalg.inv(jacobian(x_prev[0:-1])), lagrange_slae(x_prev[0:-1]))
-    iter = 0
-
-    while np.linalg.norm(x_cur[0:-1] - x_prev[0:-1]) > eps and iter < max_iter:
-        iter += 1
-        x_prev = x_cur
-        x_cur = x_prev - np.matmul(np.linalg.inv(jacobian(x_prev[0:-1])), lagrange_slae(x_prev[0:-1]))
-
-    return x_cur
+        for i in range(8):
+            self.sign = -self.sign
+            x_k = x_.copy()
+            x_k[i // 2][0] += self.sign * self.a
+            print('')
+            print(f"Начальное приближение {i + 1}:\n{x_k[0:-1]}")
+            res = self.newton(x_k)
+            print("Значение x")
+            print(res[0:-1])
+            print(f"Значение y = {res[4][0]}")
+            print(f"Значение фукнции = {self.f(res[0:-1])}")
+            print('')
 
 
-if __name__ == "__main__":
-    rand_seed = 10
-    np.random.seed(rand_seed)
-    random.seed(rand_seed)
+def execute_second_lab():
 
-    dim = 4
-    A = np.array(initial_A(), float)
-    print(A)
-    b = initial_b()
-    print(b)
-    x0 = initial_x0()
-    print(x0)
-    r = random.randint(1, 20)
-    print("\nРадиус сферы =", r)
+    s_l = SecondLab(5, 4, 3, 1)
+    s_l.start_lab()
 
-    y = 2
-    n = 3
-    sign = 1
-    x = np.append(x0, [[y]], axis=0)
 
-    x_star = np.matmul(-np.linalg.inv(A), b)
-    f_x_star = function(x_star)
-    print(f"x* =\n{x_star}")
-    print(f"Функция от x* = {f_x_star}")
-    print(f"x*-x0 =\n{x_star - x0}")
-    print(f"||x*-x0|| = {np.linalg.norm(x_star - x0)}")
-
-    for i in range(8):
-        sign = -sign
-        x_k = x.copy()
-        x_k[i//2][0] += sign * n
-        print(f"\nДля {i+1}:\n{x_k[0:-1]}")
-        res = newton(x_k)
-        print(f"Результат по x = {res[0:-1]}")
-        print(f"Результат по y = {res[4][0]}")
-        print(f"Результат для функции = {res[0:-1]}")
+# if __name__ == "__main__":
+execute_second_lab()
