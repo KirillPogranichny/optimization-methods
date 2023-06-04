@@ -12,7 +12,7 @@ class Solution:
     __support_matrix = 0
 
     def __init__(self):
-        np.random.seed(123456)
+        np.random.seed(16)
         self.__c = np.array(np.random.randint(100, size=self.__n))
         self.__b = np.array(np.random.randint(100, size=self.__m))
         self.__A = np.array(np.random.randint(100, size=(self.__m, self.__n)))
@@ -37,9 +37,7 @@ class Solution:
                 answer.append(mat[index_line][mat[0].size - 1])
             else:
                 answer.append(0)
-        print("Промежуточное решение:")
-
-        print(np.array(answer))
+        print("Промежуточное решение:\n", np.array(answer))
 
     def __create_main(self, c, b):
         main_mat = np.zeros((9, 15))
